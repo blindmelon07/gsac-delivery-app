@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\xampp2\\\\htdocs\\\\gsac-deliveryapp\\\\app\\\\Http\\\\Controllers\\\\Auth\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\xampp2\\\\htdocs\\\\gsac-deliveryapp\\\\app\\\\Http\\\\Controllers\\\\Admin\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\xampp2\\\\htdocs\\\\gsac-deliveryapp\\\\app\\\\Http\\\\Controllers\\\\Customer\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\xampp2\\\\htdocs\\\\gsac-deliveryapp\\\\app\\\\Http\\\\Controllers\\\\Rider\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\xampp2\\\\htdocs\\\\gsac-deliveryapp\\\\resources\\\\views\")",
+      "Read(//c/xampp/**)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\xampp2\\\\mysql_start.bat\" -WorkingDirectory \"C:\\\\xampp2\" -WindowStyle Hidden)",
+      "PowerShell(netstat -an)",
+      "PowerShell(& \"C:\\\\xampp2\\\\mysql\\\\bin\\\\mysql.exe\" -u root --connect-timeout=5 -e \"SELECT 1;\" 2>&1)",
+      "WebFetch(domain:developers.paymongo.com)"
+    ]
+  }
+}
