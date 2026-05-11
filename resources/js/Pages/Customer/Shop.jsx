@@ -7,18 +7,33 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { ShoppingCart, Plus, Minus, X, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import { Label } from '@/Components/ui/label';
+import LocationPicker from '@/Components/LocationPicker';
 
 export default function Shop({ products, categories, filters }) {
     const [cart, setCart] = useState([]);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [search, setSearch] = useState(filters?.search || '');
     const [activeCategory, setActiveCategory] = useState(filters?.category || '');
+    const [location, setLocation] = useState({ address: '', lat: null, lng: null });
 
     const { data, setData, post, processing, errors } = useForm({
         delivery_address: '',
+        delivery_lat: null,
+        delivery_lng: null,
+        payment_method: 'cod',
         notes: '',
         items: [],
     });
+
+    function handleLocationChange(loc) {
+        setLocation(loc);
+        setData(d => ({
+            ...d,
+            delivery_address: loc.address,
+            delivery_lat: loc.lat,
+            delivery_lng: loc.lng,
+        }));
+    }
 
     function addToCart(product) {
         setCart(prev => {
@@ -54,7 +69,10 @@ export default function Shop({ products, categories, filters }) {
     function submitOrder(e) {
         e.preventDefault();
         post('/customer/orders', {
-            data: { ...data, items: cart.map(i => ({ product_id: i.product_id, quantity: i.quantity })) },
+            data: {
+                ...data,
+                items: cart.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
+            },
             onSuccess: () => { setCart([]); setCheckoutOpen(false); },
         });
     }
@@ -134,11 +152,12 @@ export default function Shop({ products, categories, filters }) {
 
             {/* Checkout dialog */}
             <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Checkout</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-2">
+                        {/* Cart items */}
                         <div className="divide-y divide-gray-100">
                             {cart.map(item => (
                                 <div key={item.product_id} className="py-2 flex items-center justify-between">
@@ -155,6 +174,8 @@ export default function Shop({ products, categories, filters }) {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Totals */}
                         <div className="flex justify-between text-sm font-semibold border-t pt-2">
                             <span>Subtotal</span><span>₱{cartTotal.toFixed(2)}</span>
                         </div>
@@ -164,19 +185,68 @@ export default function Shop({ products, categories, filters }) {
                         <div className="flex justify-between font-bold border-t pt-2">
                             <span>Total</span><span className="text-[#E8622A]">₱{(cartTotal + 49).toFixed(2)}</span>
                         </div>
+
                         <form onSubmit={submitOrder} className="space-y-3">
+                            {/* Google Maps location picker */}
                             <div className="space-y-1">
-                                <Label>Delivery Address</Label>
-                                <Input value={data.delivery_address} onChange={e => setData('delivery_address', e.target.value)} placeholder="Full delivery address" />
-                                {errors.delivery_address && <p className="text-xs text-red-500">{errors.delivery_address}</p>}
+                                <Label>Delivery Location</Label>
+                                <LocationPicker
+                                    value={location}
+                                    onChange={handleLocationChange}
+                                />
+                                {errors.delivery_address && (
+                                    <p className="text-xs text-red-500">{errors.delivery_address}</p>
+                                )}
                             </div>
+
+                            {/* Payment method */}
+                            <div className="space-y-2">
+                                <Label>Payment Method</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { value: 'cod', label: 'Cash on Delivery', desc: 'Pay the rider in cash', icon: '💵' },
+                                        { value: 'qrph', label: 'QR Ph', desc: 'GCash, Maya, InstaPay', icon: '📱' },
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setData('payment_method', opt.value)}
+                                            className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-colors ${data.payment_method === opt.value ? 'border-[#E8622A] bg-[#E8622A]/5' : 'border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            <span className="text-2xl">{opt.icon}</span>
+                                            <span className={`text-xs font-semibold ${data.payment_method === opt.value ? 'text-[#E8622A]' : 'text-gray-700'}`}>{opt.label}</span>
+                                            <span className="text-xs text-gray-400">{opt.desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="space-y-1">
                                 <Label>Notes (optional)</Label>
-                                <Input value={data.notes} onChange={e => setData('notes', e.target.value)} placeholder="Special instructions…" />
+                                <Input
+                                    value={data.notes}
+                                    onChange={e => setData('notes', e.target.value)}
+                                    placeholder="Gate code, landmark, special instructions…"
+                                />
                             </div>
-                            <Button type="submit" className="w-full" disabled={processing}>
-                                {processing ? 'Placing order…' : 'Place Order'}
+
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={processing || !data.delivery_address}
+                            >
+                                {processing
+                                    ? 'Placing order…'
+                                    : data.payment_method === 'cod'
+                                        ? '💵 Place Order — Pay on Delivery'
+                                        : '📱 Place Order — Pay via QR Ph'}
                             </Button>
+
+                            {!data.delivery_address && (
+                                <p className="text-xs text-center text-gray-400">
+                                    Search or pin your delivery location to continue
+                                </p>
+                            )}
                         </form>
                     </div>
                 </DialogContent>

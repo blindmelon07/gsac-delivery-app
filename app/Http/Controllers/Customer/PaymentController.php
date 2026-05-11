@@ -12,13 +12,13 @@ class PaymentController extends Controller
 {
     public function __construct(private PaymongoService $paymongo) {}
 
-    /**
-     * Show the payment page (QR code).
-     */
     public function show(Order $order, Request $request)
     {
         abort_unless($order->customer_id === $request->user()->id, 403);
-        abort_if($order->payment_status === 'paid', 302, route('customer.orders'));
+
+        if ($order->payment_status === 'paid') {
+            return redirect()->route('customer.orders');
+        }
 
         return Inertia::render('Customer/Payment', [
             'order' => [
@@ -26,14 +26,12 @@ class PaymentController extends Controller
                 'total_amount' => $order->total_amount,
                 'delivery_fee' => $order->delivery_fee,
                 'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
                 'paymongo_payment_intent_id' => $order->paymongo_payment_intent_id,
             ],
         ]);
     }
 
-    /**
-     * Initiate a QR Ph PaymentIntent and return QR code data.
-     */
     public function initiate(Order $order, Request $request)
     {
         abort_unless($order->customer_id === $request->user()->id, 403);
@@ -46,15 +44,13 @@ class PaymentController extends Controller
         $totalWithFee = (float) $order->total_amount + (float) $order->delivery_fee;
         $amountCentavos = (int) round($totalWithFee * 100);
 
-        $returnUrl = route('customer.payment.show', $order->id);
-
         try {
             $result = $this->paymongo->initiateQrPh(
                 amountCentavos: $amountCentavos,
                 name: $user->name,
                 email: $user->email,
                 phone: $user->phone ?? '',
-                returnUrl: $returnUrl,
+                returnUrl: route('customer.payment.show', $order->id),
                 description: "Gsac Delivery Order #{$order->id}",
             );
 
@@ -74,14 +70,11 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Poll payment intent status.
-     */
     public function checkStatus(Order $order, Request $request)
     {
         abort_unless($order->customer_id === $request->user()->id, 403);
 
-        if (! $order->paymongo_payment_intent_id) {
+        if (!$order->paymongo_payment_intent_id) {
             return response()->json(['status' => 'unpaid']);
         }
 
@@ -95,7 +88,7 @@ class PaymentController extends Controller
 
             if ($status === 'succeeded') {
                 $payments = $intent['attributes']['payments'] ?? [];
-                $paymentId = ! empty($payments) ? $payments[0]['id'] : null;
+                $paymentId = !empty($payments) ? $payments[0]['id'] : null;
 
                 $order->update([
                     'payment_status' => 'paid',

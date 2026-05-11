@@ -39,6 +39,14 @@ export default function Orders({ orders }) {
                                     <span>Total (incl. ₱49 delivery)</span>
                                     <span className="text-[#E8622A]">₱{(Number(order.total_amount) + 49).toFixed(2)}</span>
                                 </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${order.payment_method === 'cod' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                        {order.payment_method === 'cod' ? '💵 Cash on Delivery' : '📱 QR Ph'}
+                                    </span>
+                                    <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                                        {order.payment_status === 'paid' ? '✓ Paid' : order.payment_status === 'failed' ? '✗ Failed' : 'Unpaid'}
+                                    </span>
+                                </div>
                                 {order.delivery_address && (
                                     <p className="text-xs text-gray-500">📍 {order.delivery_address}</p>
                                 )}

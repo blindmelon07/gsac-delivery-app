@@ -26,10 +26,6 @@ class PaymongoService
         ];
     }
 
-    /**
-     * Create a PaymentIntent for QR Ph.
-     * Amount must be in centavos (PHP x 100).
-     */
     public function createPaymentIntent(int $amountCentavos, string $description = 'Gsac Delivery Order'): array
     {
         $response = Http::withHeaders($this->secretHeaders())
@@ -46,22 +42,13 @@ class PaymongoService
             ]);
 
         $this->throwIfFailed($response);
-
         return $response->json('data');
     }
 
-    /**
-     * Create a QR Ph PaymentMethod.
-     */
     public function createQrPhPaymentMethod(string $name, string $email, string $phone = ''): array
     {
-        $billing = [
-            'name' => $name,
-            'email' => $email,
-        ];
-        if ($phone) {
-            $billing['phone'] = $phone;
-        }
+        $billing = ['name' => $name, 'email' => $email];
+        if ($phone) $billing['phone'] = $phone;
 
         $response = Http::withHeaders($this->secretHeaders())
             ->post("{$this->baseUrl}/payment_methods", [
@@ -74,14 +61,9 @@ class PaymongoService
             ]);
 
         $this->throwIfFailed($response);
-
         return $response->json('data');
     }
 
-    /**
-     * Attach a PaymentMethod to a PaymentIntent.
-     * Returns the payment intent with next_action containing the QR code.
-     */
     public function attachPaymentMethod(string $paymentIntentId, string $paymentMethodId, string $returnUrl): array
     {
         $response = Http::withHeaders($this->secretHeaders())
@@ -95,34 +77,23 @@ class PaymongoService
             ]);
 
         $this->throwIfFailed($response);
-
         return $response->json('data');
     }
 
-    /**
-     * Retrieve a PaymentIntent status.
-     */
     public function getPaymentIntent(string $paymentIntentId): array
     {
         $response = Http::withHeaders($this->secretHeaders())
             ->get("{$this->baseUrl}/payment_intents/{$paymentIntentId}");
 
         $this->throwIfFailed($response);
-
         return $response->json('data');
     }
 
-    /**
-     * Verify a webhook signature from PayMongo.
-     * PayMongo sends: t=timestamp,li=live_signature,te=test_signature
-     */
     public function verifyWebhookSignature(string $payload, string $signatureHeader): bool
     {
         $webhookSecret = config('services.paymongo.webhook_secret');
 
-        if (! $webhookSecret) {
-            return true; // skip verification in dev if no secret set
-        }
+        if (!$webhookSecret) return true;
 
         $parts = [];
         foreach (explode(',', $signatureHeader) as $part) {
@@ -130,23 +101,14 @@ class PaymongoService
             $parts[$key] = $value;
         }
 
-        if (! isset($parts['t'])) {
-            return false;
-        }
+        if (!isset($parts['t'])) return false;
 
-        $timestamp = $parts['t'];
-        $signedPayload = "{$timestamp}.{$payload}";
-        $computedSignature = hash_hmac('sha256', $signedPayload, $webhookSecret);
-
+        $computedSignature = hash_hmac('sha256', "{$parts['t']}.{$payload}", $webhookSecret);
         $receivedSignature = $parts['li'] ?? $parts['te'] ?? '';
 
         return hash_equals($computedSignature, $receivedSignature);
     }
 
-    /**
-     * Full QR Ph initiation: creates intent + method + attaches in one call.
-     * Returns ['payment_intent_id', 'qr_image', 'expires_at', 'status']
-     */
     public function initiateQrPh(int $amountCentavos, string $name, string $email, string $phone, string $returnUrl, string $description): array
     {
         $intent = $this->createPaymentIntent($amountCentavos, $description);
@@ -156,13 +118,8 @@ class PaymongoService
         $attrs = $attached['attributes'];
         $nextAction = $attrs['next_action'] ?? null;
 
-        $qrImage = null;
-        $expiresAt = null;
-
-        if ($nextAction && isset($nextAction['display_details'])) {
-            $qrImage = $nextAction['display_details']['qr_image'] ?? null;
-            $expiresAt = $nextAction['display_details']['expires_at'] ?? null;
-        }
+        $qrImage = $nextAction['display_details']['qr_image'] ?? null;
+        $expiresAt = $nextAction['display_details']['expires_at'] ?? null;
 
         return [
             'payment_intent_id' => $attached['id'],
@@ -176,7 +133,7 @@ class PaymongoService
     {
         if ($response->failed()) {
             $errors = $response->json('errors', []);
-            $message = ! empty($errors) ? $errors[0]['detail'] : 'PayMongo API error';
+            $message = !empty($errors) ? $errors[0]['detail'] : 'PayMongo API error';
             throw new \RuntimeException($message, $response->status());
         }
     }

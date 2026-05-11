@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Truck, CheckCircle, DollarSign } from 'lucide-react';
 import { StatusBadge } from '@/Components/ui/badge';
+import DeliveryMap from '@/Components/DeliveryMap';
 
 export default function Dashboard({ stats, activeDeliveries, availableOrders }) {
     function accept(orderId) { router.post(`/rider/deliveries/${orderId}/accept`); }
@@ -13,6 +14,7 @@ export default function Dashboard({ stats, activeDeliveries, availableOrders }) 
     return (
         <AppLayout title="Rider Dashboard">
             <div className="space-y-6">
+                {/* Stats */}
                 <div className="grid grid-cols-3 gap-4">
                     {[
                         { label: 'Active Deliveries', value: stats.active_deliveries, icon: Truck, color: 'text-yellow-500' },
@@ -29,23 +31,39 @@ export default function Dashboard({ stats, activeDeliveries, availableOrders }) 
                     ))}
                 </div>
 
+                {/* Active deliveries with maps */}
                 {activeDeliveries.length > 0 && (
                     <Card>
                         <CardHeader><CardTitle>Active Deliveries</CardTitle></CardHeader>
                         <CardContent className="divide-y divide-gray-100">
                             {activeDeliveries.map(order => (
-                                <div key={order.id} className="py-3 space-y-2">
-                                    <div className="flex justify-between">
-                                        <p className="text-sm font-medium">Order #{order.id} — {order.customer?.name}</p>
+                                <div key={order.id} className="py-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-semibold text-[#1A100A]">
+                                                Order #{order.id} — {order.customer?.name}
+                                            </p>
+                                        </div>
                                         <StatusBadge status={order.status} />
                                     </div>
-                                    <p className="text-xs text-gray-500">📍 {order.delivery_address}</p>
+
+                                    <DeliveryMap
+                                        lat={order.delivery_latitude}
+                                        lng={order.delivery_longitude}
+                                        address={order.delivery_address}
+                                        orderId={order.id}
+                                    />
+
                                     <div className="flex gap-2">
                                         {order.status === 'out_for_delivery' && (
-                                            <Button size="sm" onClick={() => pickup(order.id)}>Mark Picked Up</Button>
+                                            <Button size="sm" onClick={() => pickup(order.id)} className="flex-1">
+                                                Mark Picked Up
+                                            </Button>
                                         )}
                                         {order.status === 'preparing' && (
-                                            <Button size="sm" variant="secondary" onClick={() => deliver(order.id)}>Mark Delivered</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => deliver(order.id)} className="flex-1">
+                                                Mark Delivered ✓
+                                            </Button>
                                         )}
                                     </div>
                                 </div>
@@ -54,17 +72,29 @@ export default function Dashboard({ stats, activeDeliveries, availableOrders }) 
                     </Card>
                 )}
 
+                {/* Available orders with map preview */}
                 {availableOrders.length > 0 && (
                     <Card>
                         <CardHeader><CardTitle>Available Orders</CardTitle></CardHeader>
                         <CardContent className="divide-y divide-gray-100">
                             {availableOrders.map(order => (
-                                <div key={order.id} className="py-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium">Order #{order.id} — {order.customer?.name}</p>
-                                        <p className="text-xs text-gray-500">📍 {order.delivery_address} • ₱49 delivery fee</p>
+                                <div key={order.id} className="py-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-semibold text-[#1A100A]">
+                                                Order #{order.id} — {order.customer?.name}
+                                            </p>
+                                            <p className="text-xs text-[#E8622A] font-medium">₱49 delivery fee</p>
+                                        </div>
+                                        <Button size="sm" onClick={() => accept(order.id)}>Accept</Button>
                                     </div>
-                                    <Button size="sm" onClick={() => accept(order.id)}>Accept</Button>
+
+                                    <DeliveryMap
+                                        lat={order.delivery_latitude}
+                                        lng={order.delivery_longitude}
+                                        address={order.delivery_address}
+                                        orderId={order.id}
+                                    />
                                 </div>
                             ))}
                         </CardContent>

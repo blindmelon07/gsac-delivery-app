@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { CheckCircle, XCircle, RefreshCw, QrCode, Clock } from 'lucide-react';
 import axios from 'axios';
 
-const POLL_INTERVAL = 3000; // 3 seconds
+const POLL_INTERVAL = 3000;
 
 export default function Payment({ order }) {
-    const [phase, setPhase] = useState('idle'); // idle | loading | qr | paid | failed | error
+    const [phase, setPhase] = useState('idle');
     const [qrImage, setQrImage] = useState(null);
     const [expiresAt, setExpiresAt] = useState(null);
     const [timeLeft, setTimeLeft] = useState(null);
@@ -36,21 +36,11 @@ export default function Payment({ order }) {
         setErrorMsg('');
         try {
             const { data } = await axios.post(`/customer/orders/${order.id}/pay/initiate`);
-
-            if (data.already_paid) {
-                setPhase('paid');
-                return;
-            }
-            if (data.error) {
-                setPhase('error');
-                setErrorMsg(data.error);
-                return;
-            }
-
+            if (data.already_paid) { setPhase('paid'); return; }
+            if (data.error) { setPhase('error'); setErrorMsg(data.error); return; }
             setQrImage(data.qr_image);
             setExpiresAt(data.expires_at);
             setPhase('qr');
-
             startCountdown(data.expires_at);
             startPolling();
         } catch (err) {
@@ -73,9 +63,7 @@ export default function Payment({ order }) {
                     clearInterval(countdownRef.current);
                     setPhase('failed');
                 }
-            } catch {
-                // Ignore poll errors silently
-            }
+            } catch { /* silent */ }
         }, POLL_INTERVAL);
     }
 
@@ -101,29 +89,21 @@ export default function Payment({ order }) {
         return `${m}:${s}`;
     }
 
-    function goToOrders() {
-        router.visit('/customer/orders');
-    }
-
     return (
         <AppLayout title="Complete Payment">
             <div className="max-w-md mx-auto">
                 <Card>
                     <CardHeader className="text-center pb-2">
-                        <CardTitle style={{ fontFamily: 'Fraunces, serif' }}>
-                            QR Ph Payment
-                        </CardTitle>
+                        <CardTitle style={{ fontFamily: 'Fraunces, serif' }}>QR Ph Payment</CardTitle>
                         <p className="text-sm text-gray-500">Order #{order.id}</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Amount */}
                         <div className="bg-[#FBF7F4] rounded-xl p-4 text-center">
                             <p className="text-sm text-gray-500 mb-1">Total Amount</p>
                             <p className="text-3xl font-bold text-[#E8622A]">₱{totalAmount}</p>
                             <p className="text-xs text-gray-400 mt-1">Includes ₱{parseFloat(order.delivery_fee).toFixed(2)} delivery fee</p>
                         </div>
 
-                        {/* Phase: loading */}
                         {phase === 'loading' && (
                             <div className="flex flex-col items-center py-8 gap-3">
                                 <RefreshCw className="h-10 w-10 text-[#E8622A] animate-spin" />
@@ -131,45 +111,38 @@ export default function Payment({ order }) {
                             </div>
                         )}
 
-                        {/* Phase: QR code */}
                         {phase === 'qr' && (
                             <div className="flex flex-col items-center gap-4">
                                 <div className="bg-white border-2 border-[#E8622A] rounded-2xl p-4 shadow-md">
-                                    {qrImage ? (
-                                        <img
-                                            src={qrImage}
-                                            alt="QR Ph Code"
-                                            className="w-56 h-56 object-contain"
-                                        />
-                                    ) : (
-                                        <div className="w-56 h-56 flex items-center justify-center">
-                                            <QrCode className="h-24 w-24 text-gray-300" />
-                                        </div>
-                                    )}
+                                    {qrImage
+                                        ? <img src={qrImage} alt="QR Ph Code" className="w-56 h-56 object-contain" />
+                                        : <div className="w-56 h-56 flex items-center justify-center"><QrCode className="h-24 w-24 text-gray-300" /></div>
+                                    }
                                 </div>
-
-                                {/* Countdown */}
                                 {timeLeft !== null && (
                                     <div className="flex items-center gap-2 text-sm text-gray-500">
                                         <Clock className="h-4 w-4" />
                                         <span>Expires in <span className={`font-mono font-bold ${timeLeft < 60 ? 'text-red-500' : 'text-gray-700'}`}>{formatTime(timeLeft)}</span></span>
                                     </div>
                                 )}
-
-                                <div className="text-center space-y-1">
-                                    <p className="text-sm font-medium text-gray-700">Open your banking app and scan this QR code</p>
-                                    <p className="text-xs text-gray-400">Supports BPI, BDO, UnionBank, GCash, Maya, and all InstaPay banks</p>
-                                </div>
-
-                                {/* Polling indicator */}
+                                <p className="text-sm font-medium text-gray-700 text-center">Open your banking app and scan this QR code</p>
+                                <p className="text-xs text-gray-400 text-center">BPI, BDO, UnionBank, GCash, Maya, and all InstaPay banks</p>
                                 <div className="flex items-center gap-2 text-xs text-gray-400">
                                     <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
                                     Waiting for payment…
                                 </div>
+                                <div className="border-t w-full pt-4 space-y-2">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How to pay</p>
+                                    {['Open your banking or e-wallet app', 'Tap "Scan QR" or "Pay via QR"', 'Scan the QR code above', `Confirm the ₱${totalAmount} payment`, 'Wait for confirmation here'].map((step, i) => (
+                                        <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#E8622A] text-white flex items-center justify-center font-bold">{i + 1}</span>
+                                            {step}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        {/* Phase: paid */}
                         {phase === 'paid' && (
                             <div className="flex flex-col items-center py-8 gap-4">
                                 <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
@@ -179,11 +152,10 @@ export default function Payment({ order }) {
                                     <p className="text-lg font-bold text-green-700">Payment Successful!</p>
                                     <p className="text-sm text-gray-500 mt-1">Your order has been confirmed and is being prepared.</p>
                                 </div>
-                                <Button onClick={goToOrders} variant="secondary" className="w-full">View My Orders</Button>
+                                <Button onClick={() => router.visit('/customer/orders')} variant="secondary" className="w-full">View My Orders</Button>
                             </div>
                         )}
 
-                        {/* Phase: failed */}
                         {phase === 'failed' && (
                             <div className="flex flex-col items-center py-8 gap-4">
                                 <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
@@ -191,49 +163,21 @@ export default function Payment({ order }) {
                                 </div>
                                 <div className="text-center">
                                     <p className="text-lg font-bold text-red-700">Payment Failed or Expired</p>
-                                    <p className="text-sm text-gray-500 mt-1">The QR code has expired or the payment was not completed.</p>
+                                    <p className="text-sm text-gray-500 mt-1">The QR code expired or payment was not completed.</p>
                                 </div>
-                                <Button onClick={initiatePayment} className="w-full">
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Generate New QR Code
-                                </Button>
-                                <Button onClick={goToOrders} variant="ghost" className="w-full">Back to Orders</Button>
+                                <Button onClick={initiatePayment} className="w-full"><RefreshCw className="h-4 w-4 mr-2" />Generate New QR Code</Button>
+                                <Button onClick={() => router.visit('/customer/orders')} variant="ghost" className="w-full">Back to Orders</Button>
                             </div>
                         )}
 
-                        {/* Phase: error */}
                         {phase === 'error' && (
                             <div className="flex flex-col items-center py-8 gap-4">
                                 <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
                                     <XCircle className="h-10 w-10 text-red-500" />
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-lg font-bold text-red-700">Error</p>
-                                    <p className="text-sm text-gray-500 mt-1">{errorMsg || 'Something went wrong.'}</p>
-                                </div>
-                                <Button onClick={initiatePayment} className="w-full">
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Try Again
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* Instructions (shown during QR phase) */}
-                        {phase === 'qr' && (
-                            <div className="border-t pt-4 space-y-2">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How to pay</p>
-                                {[
-                                    'Open your banking or e-wallet app',
-                                    'Tap "Scan QR" or "Pay via QR"',
-                                    'Scan the QR code above',
-                                    'Confirm the ₱' + totalAmount + ' payment',
-                                    'Wait for confirmation here',
-                                ].map((step, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#E8622A] text-white flex items-center justify-center text-xs font-bold">{i + 1}</span>
-                                        {step}
-                                    </div>
-                                ))}
+                                <p className="text-lg font-bold text-red-700 text-center">Error</p>
+                                <p className="text-sm text-gray-500 text-center">{errorMsg}</p>
+                                <Button onClick={initiatePayment} className="w-full"><RefreshCw className="h-4 w-4 mr-2" />Try Again</Button>
                             </div>
                         )}
                     </CardContent>

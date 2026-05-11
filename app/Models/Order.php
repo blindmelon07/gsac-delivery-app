@@ -9,23 +9,33 @@ class Order extends Model
 {
     use HasFactory;
 
-    const STATUS_PENDING = 'pending';
-    const STATUS_CONFIRMED = 'confirmed';
-    const STATUS_PREPARING = 'preparing';
-    const STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
-    const STATUS_DELIVERED = 'delivered';
-    const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_CONFIRMED = 'confirmed';
+    public const STATUS_PREPARING = 'preparing';
+    public const STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+    public const STATUS_DELIVERED = 'delivered';
+    public const STATUS_CANCELLED = 'cancelled';
 
-    const PAYMENT_UNPAID = 'unpaid';
-    const PAYMENT_PENDING = 'pending';
-    const PAYMENT_PAID = 'paid';
-    const PAYMENT_FAILED = 'failed';
+    public const PAYMENT_UNPAID = 'unpaid';
+    public const PAYMENT_PENDING = 'pending';
+    public const PAYMENT_PAID = 'paid';
+    public const PAYMENT_FAILED = 'failed';
+
+    public const METHOD_QRPH = 'qrph';
+    public const METHOD_COD = 'cod';
 
     protected $fillable = [
         'customer_id', 'rider_id', 'status', 'total_amount', 'delivery_fee',
-        'delivery_address', 'notes', 'estimated_delivery_at', 'delivered_at',
+        'delivery_address', 'delivery_latitude', 'delivery_longitude',
+        'notes', 'estimated_delivery_at', 'delivered_at',
         'paymongo_payment_intent_id', 'paymongo_payment_id', 'payment_status',
+        'payment_method',
     ];
+
+    public function isCod(): bool
+    {
+        return $this->payment_method === self::METHOD_COD;
+    }
 
     protected function casts(): array
     {

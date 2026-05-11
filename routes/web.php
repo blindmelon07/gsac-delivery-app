@@ -18,9 +18,8 @@ use Illuminate\Support\Facades\Route;
 // Public
 Route::get('/', [LandingController::class, 'index'])->name('home');
 
-// Webhook — no auth, no CSRF
+// Webhook — no auth, CSRF excluded via bootstrap/app.php validateCsrfTokens
 Route::post('/webhooks/paymongo', [WebhookController::class, 'paymongo'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('webhooks.paymongo');
 
 // Auth
@@ -55,6 +54,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders');
     Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
     Route::patch('/orders/{order}/assign', [AdminOrderController::class, 'assignRider'])->name('orders.assign');
+    Route::patch('/orders/{order}/mark-paid', [AdminOrderController::class, 'markPaid'])->name('orders.mark-paid');
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');

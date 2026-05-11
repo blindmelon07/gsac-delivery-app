@@ -45,4 +45,11 @@ class OrderController extends Controller
 
         return back()->with('success', 'Rider assigned successfully.');
     }
+
+    public function markPaid(Order $order)
+    {
+        $order->update(['payment_status' => 'paid']);
+
+        return back()->with('success', 'Order marked as paid.');
+    }
 }

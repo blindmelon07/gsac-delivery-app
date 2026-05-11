@@ -172,3 +172,16 @@ test('admin can reactivate a user', function () {
 
     expect($customer->fresh()->is_active)->toBeTrue();
 });
+
+test('admin can mark a COD order as paid', function () {
+    $order = Order::factory()->create([
+        'customer_id'    => userWithRole('customer')->id,
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+    ]);
+
+    $this->actingAs(userWithRole('admin'))
+        ->patch("/admin/orders/{$order->id}/mark-paid");
+
+    expect($order->fresh()->payment_status)->toBe('paid');
+});

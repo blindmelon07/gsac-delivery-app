@@ -85,6 +85,45 @@ test('shop can be filtered by category', function () {
 
 // --- Place order ---
 
+test('customer can place a COD order and is redirected to orders list', function () {
+    $customer = userWithRole('customer');
+    $product = Product::factory()->create(['price' => 100.00]);
+
+    $this->actingAs($customer)
+        ->post('/customer/orders', [
+            'delivery_address' => '123 Test Street, Manila',
+            'payment_method' => 'cod',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])
+        ->assertRedirect(route('customer.orders'));
+
+    $this->assertDatabaseHas('orders', [
+        'customer_id' => $customer->id,
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+    ]);
+});
+
+test('customer can place a QR Ph order and is redirected to payment page', function () {
+    $customer = userWithRole('customer');
+    $product = Product::factory()->create(['price' => 100.00]);
+
+    $response = $this->actingAs($customer)
+        ->post('/customer/orders', [
+            'delivery_address' => '123 Test Street, Manila',
+            'payment_method' => 'qrph',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+    $order = \App\Models\Order::where('customer_id', $customer->id)->first();
+    $response->assertRedirect(route('customer.payment.show', $order->id));
+
+    $this->assertDatabaseHas('orders', [
+        'customer_id' => $customer->id,
+        'payment_method' => 'qrph',
+    ]);
+});
+
 test('customer can place an order', function () {
     $customer = userWithRole('customer');
     $product = Product::factory()->create(['price' => 100.00]);
@@ -92,6 +131,9 @@ test('customer can place an order', function () {
     $this->actingAs($customer)
         ->post('/customer/orders', [
             'delivery_address' => '123 Test Street, Manila',
+            'delivery_lat' => 14.5995,
+            'delivery_lng' => 120.9842,
+            'payment_method' => 'cod',
             'items' => [
                 ['product_id' => $product->id, 'quantity' => 2],
             ],
@@ -102,6 +144,8 @@ test('customer can place an order', function () {
         'customer_id' => $customer->id,
         'total_amount' => 200.00,
         'status' => 'pending',
+        'delivery_latitude' => 14.5995,
+        'delivery_longitude' => 120.9842,
     ]);
 
     $this->assertDatabaseHas('order_items', [
@@ -111,21 +155,68 @@ test('customer can place an order', function () {
     ]);
 });
 
+test('order saves null coordinates when not provided', function () {
+    $customer = userWithRole('customer');
+    $product = Product::factory()->create();
+
+    $this->actingAs($customer)->post('/customer/orders', [
+        'delivery_address' => '123 Test Street, Manila',
+        'payment_method' => 'cod',
+        'items' => [['product_id' => $product->id, 'quantity' => 1]],
+    ]);
+
+    $this->assertDatabaseHas('orders', [
+        'customer_id' => $customer->id,
+        'delivery_latitude' => null,
+        'delivery_longitude' => null,
+    ]);
+});
+
+test('order rejects coordinates out of valid range', function () {
+    $customer = userWithRole('customer');
+    $product = Product::factory()->create();
+
+    $this->actingAs($customer)
+        ->post('/customer/orders', [
+            'delivery_address' => '123 Test Street',
+            'delivery_lat' => 999,
+            'delivery_lng' => 999,
+            'payment_method' => 'cod',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])
+        ->assertSessionHasErrors(['delivery_lat', 'delivery_lng']);
+});
+
 test('order requires delivery address', function () {
     $customer = userWithRole('customer');
     $product = Product::factory()->create();
 
     $this->actingAs($customer)
         ->post('/customer/orders', [
+            'payment_method' => 'cod',
             'items' => [['product_id' => $product->id, 'quantity' => 1]],
         ])
         ->assertSessionHasErrors('delivery_address');
+});
+
+test('order requires a valid payment method', function () {
+    $customer = userWithRole('customer');
+    $product = Product::factory()->create();
+
+    $this->actingAs($customer)
+        ->post('/customer/orders', [
+            'delivery_address' => '123 Test St',
+            'payment_method' => 'bitcoin',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])
+        ->assertSessionHasErrors('payment_method');
 });
 
 test('order requires at least one item', function () {
     $this->actingAs(userWithRole('customer'))
         ->post('/customer/orders', [
             'delivery_address' => '123 Test St',
+            'payment_method' => 'cod',
             'items' => [],
         ])
         ->assertSessionHasErrors('items');
